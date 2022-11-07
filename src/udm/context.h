@@ -41,7 +41,8 @@ typedef struct udm_context_s {
     ogs_list_t      udm_ue_list;
     ogs_hash_t      *suci_hash;
     ogs_hash_t      *supi_hash;
-
+    uint8_t         *suci_hnkey_filename;    // M51
+    EVP_PKEY        *suci_hnkey_pkey;
 } udm_context_t;
 
 struct udm_ue_s {

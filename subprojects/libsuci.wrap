@@ -1,0 +1,4 @@
+[wrap-git]
+directory = libsuci
+url = https://github.com/mode51software/libsuci.git
+revision = main

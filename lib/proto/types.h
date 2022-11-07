@@ -104,6 +104,8 @@ extern "C" {
 
 #define OGS_MAX_QOS_FLOW_ID             63
 
+#include <openssl/evp.h>
+
 /************************************
  * PLMN_ID Structure                */
 #define OGS_MAX_NUM_OF_PLMN         6
@@ -176,8 +178,8 @@ ogs_amf_id_t *ogs_amf_id_build(ogs_amf_id_t *amf_id,
 
 /************************************
  * SUPI/SUCI                       */
-char *ogs_supi_from_suci(char *suci);
-char *ogs_supi_from_supi_or_suci(char *supi_or_suci);
+char *ogs_supi_from_suci(char *suci, EVP_PKEY* hn_privkey);
+char *ogs_supi_from_supi_or_suci(char *supi_or_suci, EVP_PKEY* hn_privkey);
 
 /************************************
  * SUPI/GPSI                       */

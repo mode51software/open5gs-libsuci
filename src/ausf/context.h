@@ -41,6 +41,8 @@ typedef struct ausf_context_s {
     ogs_list_t      ausf_ue_list;
     ogs_hash_t      *suci_hash;
     ogs_hash_t      *supi_hash;
+    uint8_t         *suci_hnkey_filename;    // M51
+    EVP_PKEY        *suci_hnkey_pkey;
 
 } ausf_context_t;
 

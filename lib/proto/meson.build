@@ -31,15 +31,18 @@ libproto_sources = files('''
 
 libproto_inc = include_directories('.')
 
+libsuci_proj = subproject('libsuci')
+libsuci_dep = libsuci_proj.get_variable('libsuci_dep')
+
 libproto = library('ogsproto',
     sources : libproto_sources,
     version : libogslib_version,
     c_args : '-DOGS_PROTO_COMPILATION',
     include_directories : [libproto_inc, libinc],
-    dependencies : libcore_dep,
+    dependencies : [libcore_dep, libsuci_dep],
     install : true)
 
 libproto_dep = declare_dependency(
     link_with : libproto,
     include_directories : [libproto_inc, libinc],
-    dependencies : libcore_dep)
+    dependencies : [libcore_dep, libsuci_dep])

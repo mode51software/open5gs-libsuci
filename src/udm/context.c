@@ -19,6 +19,9 @@
 
 #include "sbi-path.h"
 
+#include "suci_utils.h"
+#include "suci_calcs.h"
+
 static udm_context_t self;
 
 int __udm_log_domain;
@@ -106,6 +109,21 @@ int udm_context_parse_config(void)
                     /* handle config in sbi library */
                 } else if (!strcmp(udm_key, "discovery")) {
                     /* handle config in sbi library */
+                } else if (!strcmp(udm_key, "suci")) {    // M51
+                    ogs_yaml_iter_t suci_iter;
+                    ogs_yaml_iter_recurse(&udm_iter, &suci_iter);
+
+                    while (ogs_yaml_iter_next(&suci_iter)) {
+                        const char *suci_key =
+                                ogs_yaml_iter_key(&suci_iter);
+                        ogs_assert(suci_key);
+
+                        if (!strcmp(suci_key, "hnprivkey")) {
+                            self.suci_hnkey_filename = ogs_yaml_iter_value(&suci_iter);
+                            ogs_info("SUCI Home Network private val=%s\n", self.suci_hnkey_filename);
+                            suci_loadPrivateKeyFile(self.suci_hnkey_filename, &self.suci_hnkey_pkey);
+                        }
+                    }
                 } else
                     ogs_warn("unknown key `%s`", udm_key);
             }
@@ -137,9 +155,11 @@ udm_ue_t *udm_ue_add(char *suci)
     ogs_assert(udm_ue->suci);
     ogs_hash_set(self.suci_hash, udm_ue->suci, strlen(udm_ue->suci), udm_ue);
 
-    udm_ue->supi = ogs_supi_from_supi_or_suci(udm_ue->suci);
+    udm_ue->supi = ogs_supi_from_supi_or_suci(udm_ue->suci, self.suci_hnkey_pkey);
     ogs_assert(udm_ue->supi);
     ogs_hash_set(self.supi_hash, udm_ue->supi, strlen(udm_ue->supi), udm_ue);
+
+    ogs_warn("SIDF produced SUPI `%s` from SUCI `%s`", udm_ue->supi, udm_ue->suci);
 
     memset(&e, 0, sizeof(e));
     e.udm_ue = udm_ue;

@@ -19,6 +19,9 @@
 
 #include "ogs-proto.h"
 
+#include "suci_calcs.h"
+#include "suci_utils.h"
+
 #define PLMN_ID_DIGIT1(x) (((x) / 100) % 10)
 #define PLMN_ID_DIGIT2(x) (((x) / 10) % 10)
 #define PLMN_ID_DIGIT3(x) ((x) % 10)
@@ -194,7 +197,7 @@ ogs_amf_id_t *ogs_amf_id_build(ogs_amf_id_t *amf_id,
     return amf_id;
 }
 
-char *ogs_supi_from_suci(char *suci)
+char *ogs_supi_from_suci(char *suci, EVP_PKEY* hn_privkey)
 {
 #define MAX_SUCI_TOKEN 16
     char *array[MAX_SUCI_TOKEN];
@@ -216,10 +219,50 @@ char *ogs_supi_from_suci(char *suci)
     CASE("suci")
         SWITCH(array[1])
         CASE("0")   /* SUPI format : IMSI */
-            if (array[2] && array[3] && array[7])
-                supi = ogs_msprintf("imsi-%s%s%s",
-                        array[2], array[3], array[7]);
+            if (array[2] && array[3] && array[7]) {
+                // SUCI processing only enabled if a Home Network private key has been passed in anda key index > 0 is indicated
+                if(array[6] && strcmp(array[6], "0") != 0) {
 
+                    size_t plaintext_bin_len = 0;
+                    uint8_t plaintext_bin[64];
+                    SuciData* rawSuciData = NULL;
+
+                    if(hn_privkey != NULL) {
+
+                        short res = -1;
+
+                        rawSuciData = malloc(sizeof(SuciData));
+
+                        suci_unpackSuciString(array[7], rawSuciData, 33);
+
+                        res = suci_deconceal(hn_privkey,
+                                              rawSuciData->ue_key, rawSuciData->ue_key_sz,
+                                              rawSuciData->enc_msin, rawSuciData->enc_msin_sz,
+                                                    (uint8_t * ) &plaintext_bin, &plaintext_bin_len);
+
+                        if(res == 0 && plaintext_bin_len > 0) {
+                            uint8_t* plaintext_str = (uint8_t*) malloc((plaintext_bin_len * 2) + 1);
+                            suci_sprintfHex((uint8_t*)&plaintext_bin, plaintext_str, plaintext_bin_len, 1);
+                            supi = ogs_msprintf("imsi-%s%s%s",
+                                                array[2], array[3], (unsigned char*)plaintext_str); //, plaintext_bin_len * 2);
+                            free(plaintext_str);
+                        } else {
+                            supi = ogs_msprintf("imsi-FAILEDSUCIDECODE-res%d-len%d", res, (int)plaintext_bin_len);
+                        }
+
+                        suci_cleanupSuciData(rawSuciData);
+
+                    } else {
+                        supi = ogs_msprintf("imsi-FAILEDNOSUCIHNKEYLOADED");
+                    }
+                } else {
+                    // non-SUCI plain IMSI
+                    supi = ogs_msprintf("imsi-%s%s%s",
+                                        array[2], array[3], array[7]);
+                }
+                ogs_log_printf(OGS_LOG_INFO, OGS_LOG_DOMAIN, 0, NULL, 0, NULL, 0,
+                               "SIDF IMSI format imsi-%s%s%s", array[2], array[3], array[7]);
+            }
             break;
         DEFAULT
             ogs_error("Not implemented [%s]", array[1]);
@@ -235,7 +278,7 @@ char *ogs_supi_from_suci(char *suci)
     return supi;
 }
 
-char *ogs_supi_from_supi_or_suci(char *supi_or_suci)
+char *ogs_supi_from_supi_or_suci(char *supi_or_suci, EVP_PKEY* hn_privkey)
 {
     char *type = NULL;
     char *supi = NULL;
@@ -252,7 +295,7 @@ char *ogs_supi_from_supi_or_suci(char *supi_or_suci)
         ogs_expect(supi);
         break;
     CASE("suci")
-        supi = ogs_supi_from_suci(supi_or_suci);
+        supi = ogs_supi_from_suci(supi_or_suci, hn_privkey);
         ogs_expect(supi);
         break;
     DEFAULT
